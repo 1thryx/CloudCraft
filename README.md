@@ -4,30 +4,22 @@ A fully working microservices platform demonstrating production-grade cloud-nati
 
 ## Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Client                                                        │
-│  ↑                                                                 │
-│  ┌───────────────────────┐                                       │
-│  │  Ingress (NGINX)      │                                       │
-│  └───────────────────────┘                                       │
-│         ↑       ↑       ↑       ↑                               │
-│         ↓       ↓       ↓       ↓                               │
-│  ┌───────────────────────┐ ┌───────────────────────┐             │
-│  │  users-service        │ │  events-service       │             │
-│  │  Port 5000            │ │  Port 5001            │             │
-│  └───────────────────────┘ └───────────────────────┘             │
-│         ↑                                   ↑                   │
-│         ↓                                   ↓                   │
-│  ┌───────────────────────┐ ┌───────────────────────┐             │
-│  │  tickets-service      │ │  notifications-service│             │
-│  │  Port 5002            │ │  Port 5003            │             │
-│  └───────────────────────┘ └───────────────────────┘             │
-│         ↑                                   ↑                   │
-│         └─────────────── Event Flow ────────┘                   │
-│                                                          │
-│  Ticket Receipt Upload → S3 → Event → Notifications      │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    Client -->|HTTPS| Ingress[Ingress (NGINX)]
+    Ingress -->|/api/users| Users[Users Service]
+    Ingress -->|/api/events| Events[Events Service]
+    Ingress -->|/api/tickets| Tickets[Tickets Service]
+    
+    Tickets -->|Upload| S3[(S3 / LocalStack)]
+    S3 -->|Trigger Event| Notifications[Notifications Service]
+    
+    subgraph Services
+        Users
+        Events
+        Tickets
+        Notifications
+    end
 ```
 
 ### Component Summary
