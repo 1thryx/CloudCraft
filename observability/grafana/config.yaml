@@ -1,0 +1,384 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  selector:
+    app: grafana
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.4.0
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: 'admin'
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: 'false'
+        persistence:
+          enabled: true
+          size: 10Gi
+          storageClass: standard
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  cloudcrafter-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "uid": "cloudcrafter",
+        "title": "CloudCrafter Monitoring",
+        "timezone": "browser",
+        "schemaVersion": 2,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+          {
+            "type": "stat",
+            "title": "Service Availability",
+            "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "up{service=~\"users-service|events-service|tickets-service|notifications-service\"}",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Request Rates",
+            "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{service=~\"users-service|events-service|tickets-service|notifications-service\"}[30s])",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Error Rates",
+            "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{service=~\"users-service|events-service|tickets-service|notifications-service\",status=~\"5..\"}[30s])",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Latency (p95)",
+            "gridPos": { "x": 0, "y": 5, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=~\"users-service|events-service|tickets-service|notifications-service\"}[30s]))",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "log",
+            "title": "Application Logs (Loki)",
+            "gridPos": { "x": 6, "y": 5, "w": 12, "h": 4 },
+            "datasource": "Loki",
+            "targets": [
+              {
+                "expr": "{job=~\"cloudcrafter.*\"}",
+                "interval": "",
+                "refId": "A"
+              }
+            ]
+          }
+        ],
+        "templating": {
+          "list": [
+            {
+              "name": "service",
+              "type": "query",
+              "refresh": "refresh",
+              "default": null,
+              "options": [
+                { "value": "users-service", "text": "Users" },
+                { "value": "events-service", "text": "Events" },
+                { "value": "tickets-service", "text": "Tickets" },
+                { "value": "notifications-service", "text": "Notifications" }
+              ]
+            }
+          ]
+        },
+        "refresh": "30s",
+        "time": { "from": "now-15m", "to": "now" }
+      },
+      "refresh": "30s",
+      "time": { "from": "now-15m", "to": "now" }
+    }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loki
+  namespace: monitoring
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  selector:
+    app: loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+      - name: loki
+        image: grafana/loki:2.9.5
+        args:
+          - "-config.file=/etc/loki/local.yaml"
+        ports:
+        - containerPort: 3100
+        volumeMounts:
+        - name: config
+          mountPath: /etc/loki/
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        env:
+        - name: LOKI_config_file
+          value: /etc/loki/local.yaml
+      volumes:
+      - name: config
+        configMap:
+          name: loki-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: monitoring
+data:
+  local.yaml:
+    authentication:
+      disable_form_auth: true
+    server:
+      http_port: 3100
+    storage:
+      filesystem:
+        directory: /loki
+    schemas:
+      indices: v12
+      objects: v12
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-scraper-config
+  namespace: monitoring
+data:
+  scrapes.yml: |
+    {job_name: 'cloudcrafter-logs'}
+    static_configs:
+      - targets: ['notifications-service:5003']
+        labels:
+          job: cloudcrafter-logs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  cloudcrafter-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "uid": "cloudcrafter",
+        "title": "CloudCrafter Monitoring",
+        "timezone": "browser",
+        "schemaVersion": 2,
+        "version": 1,
+        "refresh": "30s",
+        "panels": [
+          {
+            "type": "stat",
+            "title": "Service Availability",
+            "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "up{service=~\"users-service|events-service|tickets-service|notifications-service\"}",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Request Rates",
+            "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{service=~\"users-service|events-service|tickets-service|notifications-service\"}[30s])",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Error Rates",
+            "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{service=~\"users-service|events-service|tickets-service|notifications-service\",status=~\"5..\"}[30s])",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "graph",
+            "title": "Latency (p95)",
+            "gridPos": { "x": 0, "y": 5, "w": 6, "h": 4 },
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service=~\"users-service|events-service|tickets-service|notifications-service\"}[30s]))",
+                "interval": "",
+                "legendFormat": "{{service}}",
+                "refId": "A"
+              }
+            ],
+            "executionErrorState": null,
+            "legendFormat": "{{service}}"
+          },
+          {
+            "type": "log",
+            "title": "Application Logs (Loki)",
+            "gridPos": { "x": 6, "y": 5, "w": 12, "h": 4 },
+            "datasource": "Loki",
+            "targets": [
+              {
+                "expr": "{job=~\"cloudcrafter.*\"}",
+                "interval": "",
+                "refId": "A"
+              }
+            ]
+          }
+        ],
+        "templating": {
+          "list": [
+            {
+              "name": "service",
+              "type": "query",
+              "refresh": "refresh",
+              "default": null,
+              "options": [
+                { "value": "users-service", "text": "Users" },
+                { "value": "events-service", "text": "Events" },
+                { "value": "tickets-service", "text": "Tickets" },
+                { "value": "notifications-service", "text": "Notifications" }
+              ]
+            }
+          ]
+        },
+        "refresh": "30s",
+        "time": { "from": "now-15m", "to": "now" }
+      },
+      "refresh": "30s",
+      "time": { "from": "now-15m", "to": "now" }
+    }

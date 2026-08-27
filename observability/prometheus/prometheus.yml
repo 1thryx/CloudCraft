@@ -1,0 +1,94 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'cloudcrafter-users'
+    static_configs:
+      - targets: ['users-service:5000']
+        labels:
+          service: users
+  - job_name: 'cloudcrafter-events'
+    static_configs:
+      - targets: ['events-service:5001']
+        labels:
+          service: events
+  - job_name: 'cloudcrafter-tickets'
+    static_configs:
+      - targets: ['tickets-service:5002']
+        labels:
+          service: tickets
+  - job_name: 'cloudcrafter-notifications'
+    static_configs:
+      - targets: ['notifications-service:5003']
+        labels:
+          service: notifications
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+labels:
+  prometheus: true
+spec:
+  selector:
+    prometheus: true
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      prometheus: true
+  template:
+    metadata:
+      labels:
+        prometheus: true
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.50.0
+        args:
+          - "--config.file=/etc/prometheus/prometheus.yml"
+          - "--storage.tsdb.path=/prometheus"
+          - "--web.listen-address=0.0.0.0:9090"
+          - "--web.console.libraries=/etc/prometheus/console_libraries"
+          - "--web.console.templates=/etc/prometheus/console_templates"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus/
+        - name: data
+          mountPath: /prometheus
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    {{ .Files.Get "prometheus.yml" | nindent 4 }}

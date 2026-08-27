@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: users
+    tier: api
+spec:
+  selector:
+    app: users
+    tier: api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: {{ .Values.services.users.port }}

@@ -1,0 +1,41 @@
+global:
+  name: cloudcrafter
+  namespace: cloudcrafter
+  ingressHost: cloudcrafter.local
+
+jwt:
+  secret: "change-me-at-deployment"
+
+env: "production"
+
+services:
+  users:
+    port: 5000
+    replicas: 1
+  events:
+    port: 5001
+    replicas: 1
+  tickets:
+    port: 5002
+    replicas: 1
+  notifications:
+    port: 5003
+    replicas: 1
+
+resources:
+  limits:
+    cpu: "500m"
+    memory: "256Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+
+s3:
+  endpoint: "http://localstack:4566"
+  bucket: "tickets"
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  host: "{{ .Values.global.name }}.local"

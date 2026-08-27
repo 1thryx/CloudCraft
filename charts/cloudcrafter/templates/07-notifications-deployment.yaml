@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: notifications
+    tier: api
+spec:
+  replicas: {{ .Values.services.notifications.replicas }}
+  selector:
+    matchLabels:
+      app: notifications
+      tier: api
+  template:
+    metadata:
+      labels:
+        app: notifications
+        tier: api
+    spec:
+      serviceAccountName: cloudcrafter-notifications
+      containers:
+      - name: notifications
+        image: "cloudcrafter/notifications:{{ .Chart.AppVersion }}"
+        ports:
+        - containerPort: {{ .Values.services.notifications.port }}
+        env:
+        - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cloudcrafter-config
+              key: ENV
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu }}"
+            memory: "{{ .Values.resources.requests.memory }}"
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu }}"
+            memory: "{{ .Values.resources.limits.memory }}"
+        readinessProbe:
+          httpGet:
+            path: /api/notifications
+            port: {{ .Values.services.notifications.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/notifications
+            port: {{ .Values.services.notifications.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 20

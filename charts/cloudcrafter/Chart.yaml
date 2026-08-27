@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cloudcrafter
+description: CloudCrafter - Production Microservices Platform
+type: application
+version: 0.1.0
+appVersion: 1.0.0

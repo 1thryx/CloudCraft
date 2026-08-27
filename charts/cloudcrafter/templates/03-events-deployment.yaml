@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: events
+    tier: api
+spec:
+  replicas: {{ .Values.services.events.replicas }}
+  selector:
+    matchLabels:
+      app: events
+      tier: api
+  template:
+    metadata:
+      labels:
+        app: events
+        tier: api
+    spec:
+      serviceAccountName: cloudcrafter-events
+      containers:
+      - name: events
+        image: "cloudcrafter/events:{{ .Chart.AppVersion }}"
+        ports:
+        - containerPort: {{ .Values.services.events.port }}
+        env:
+        - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cloudcrafter-config
+              key: ENV
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu }}"
+            memory: "{{ .Values.resources.requests.memory }}"
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu }}"
+            memory: "{{ .Values.resources.limits.memory }}"
+        readinessProbe:
+          httpGet:
+            path: /api/events
+            port: {{ .Values.services.events.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/events
+            port: {{ .Values.services.events.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 20

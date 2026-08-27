@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tickets-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: tickets
+    tier: api
+spec:
+  replicas: {{ .Values.services.tickets.replicas }}
+  selector:
+    matchLabels:
+      app: tickets
+      tier: api
+  template:
+    metadata:
+      labels:
+        app: tickets
+        tier: api
+    spec:
+      serviceAccountName: cloudcrafter-tickets
+      containers:
+      - name: tickets
+        image: "cloudcrafter/tickets:{{ .Chart.AppVersion }}"
+        ports:
+        - containerPort: {{ .Values.services.tickets.port }}
+        env:
+        - name: S3_ENDPOINT_URL
+          value: "{{ .Values.s3.endpoint }}"
+        - name: S3_BUCKET
+          value: "{{ .Values.s3.bucket }}"
+        - name: NOTIFICATIONS_URL
+          value: "http://notifications-service:{{ .Values.services.notifications.port }}"
+        - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cloudcrafter-config
+              key: ENV
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu }}"
+            memory: "{{ .Values.resources.requests.memory }}"
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu }}"
+            memory: "{{ .Values.resources.limits.memory }}"
+        readinessProbe:
+          httpGet:
+            path: /api/tickets
+            port: {{ .Values.services.tickets.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/tickets
+            port: {{ .Values.services.tickets.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 20

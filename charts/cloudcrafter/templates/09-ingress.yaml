@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cloudcrafter-ingress
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: "{{ .Values.global.ingressHost }}"
+    http:
+      paths:
+      - path: /users
+        pathType: Prefix
+        backend:
+          service:
+            name: users-service
+            port:
+              number: {{ .Values.services.users.port }}
+      - path: /events
+        pathType: Prefix
+        backend:
+          service:
+            name: events-service
+            port:
+              number: {{ .Values.services.events.port }}
+      - path: /tickets
+        pathType: Prefix
+        backend:
+          service:
+            name: tickets-service
+            port:
+              number: {{ .Values.services.tickets.port }}
+      - path: /notifications
+        pathType: Prefix
+        backend:
+          service:
+            name: notifications-service
+            port:
+              number: {{ .Values.services.notifications.port }}

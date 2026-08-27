@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudcrafter-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  JWT_SECRET_KEY: "{{ .Values.jwt.secret }}"
+  ENV: "{{ .Values.env }}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudcrafter-user
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudcrafter-events
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudcrafter-tickets
+  namespace: {{ .Values.global.namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudcrafter-notifications
+  namespace: {{ .Values.global.namespace }}

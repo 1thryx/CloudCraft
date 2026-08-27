@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-service
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: users
+    tier: api
+spec:
+  replicas: {{ .Values.services.users.replicas }}
+  selector:
+    matchLabels:
+      app: users
+      tier: api
+  template:
+    metadata:
+      labels:
+        app: users
+        tier: api
+    spec:
+      serviceAccountName: cloudcrafter-user
+      containers:
+      - name: users
+        image: "cloudcrafter/users:{{ .Chart.AppVersion }}"
+        ports:
+        - containerPort: {{ .Values.services.users.port }}
+        env:
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: cloudcrafter-config
+              key: JWT_SECRET_KEY
+        - name: ENV
+          valueFrom:
+            configMapKeyRef:
+              name: cloudcrafter-config
+              key: ENV
+        resources:
+          requests:
+            cpu: "{{ .Values.resources.requests.cpu }}"
+            memory: "{{ .Values.resources.requests.memory }}"
+          limits:
+            cpu: "{{ .Values.resources.limits.cpu }}"
+            memory: "{{ .Values.resources.limits.memory }}"
+        readinessProbe:
+          httpGet:
+            path: /api/users/me
+            port: {{ .Values.services.users.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/users/me
+            port: {{ .Values.services.users.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 20
