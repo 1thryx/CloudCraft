@@ -6,13 +6,13 @@ A fully working microservices platform demonstrating production-grade cloud-nati
 
 ```mermaid
 graph TD
-    Client -- HTTPS --> Ingress[Ingress (NGINX)]
-    Ingress -- /api/users --> Users[Users Service]
-    Ingress -- /api/events --> Events[Events Service]
-    Ingress -- /api/tickets --> Tickets[Tickets Service]
+    Client -- HTTPS --> Ingress["Ingress (NGINX)"]
+    Ingress -- /api/users --> Users["Users Service"]
+    Ingress -- /api/events --> Events["Events Service"]
+    Ingress -- /api/tickets --> Tickets["Tickets Service"]
     
-    Tickets -- Upload --> S3[(S3 / LocalStack)]
-    S3 -- Trigger Event --> Notifications[Notifications Service]
+    Tickets -- Upload --> S3[("S3 / LocalStack")]
+    S3 -- Trigger Event --> Notifications["Notifications Service"]
     
     subgraph Services
         Users
